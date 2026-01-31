@@ -1,0 +1,67 @@
+package org.example.series;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class SeriesLoaderTest {
+
+    @TempDir
+    Path tempDir;
+
+    @Test
+    void load_shouldParseJsonToSeries() throws Exception {
+        // arrange
+        String json = """
+                {
+                  "title": "Test Series",
+                  "genre": "Drama, Sci-Fi",
+                  "seasons": 2,
+                  "rating": 8.5,
+                  "year": 2020,
+                  "finished": false
+                }
+                """;
+
+        Path file = tempDir.resolve("test.json");
+        Files.writeString(file, json);
+
+        // act
+        Series s = SeriesLoader.load(file.toString());
+
+        // assert
+        assertNotNull(s);
+        assertEquals("Test Series", s.getTitle());
+        assertEquals("Drama, Sci-Fi", s.getGenre());
+        assertEquals(2, s.getSeasons());
+        assertEquals(8.5, s.getRating(), 1e-9);
+        assertEquals(2020, s.getYear());
+        assertFalse(s.isFinished());
+    }
+
+    @Test
+    void loadFromFolder_shouldLoadAllJsonFiles() throws Exception {
+        // arrange
+        Files.writeString(tempDir.resolve("a.json"), """
+                {"title":"A","genre":"Drama","seasons":1,"rating":7.0,"year":2010,"finished":true}
+                """);
+        Files.writeString(tempDir.resolve("b.json"), """
+                {"title":"B","genre":"Drama, Horror","seasons":2,"rating":8.0,"year":2012,"finished":false}
+                """);
+        // НЕ json — не має підхопитись
+        Files.writeString(tempDir.resolve("readme.txt"), "hello");
+
+        // act
+        List<Series> list = SeriesLoader.loadFromFolder(tempDir.toString());
+
+        // assert
+        assertEquals(2, list.size());
+        assertTrue(list.stream().anyMatch(s -> s.getTitle().equals("A")));
+        assertTrue(list.stream().anyMatch(s -> s.getTitle().equals("B")));
+    }
+}
