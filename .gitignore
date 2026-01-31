@@ -37,3 +37,8 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+# Generated statistics files
+statistics_by_*.xml
+статистика_*.xml
+*.xml
