@@ -1,65 +1,51 @@
 package org.example.series.api.mapper;
 
+import org.example.series.api.dto.SeriesRequest;
 import org.example.series.api.dto.SeriesResponse;
+import org.example.series.api.dto.StudioResponse;
 import org.example.series.core.model.Series;
-
-import java.util.List;
+import org.example.series.core.model.Studio;
 
 /**
- * Mapper utility responsible for converting
- * internal domain model objects (Series)
- * into API-facing DTO objects (SeriesResponse).
- *
- * This layer isolates the API contract from
- * the internal core model representation.
- *
- * If domain model changes, API remains stable.
+ * Mapper between Series entity and API DTOs.
  */
-public final class SeriesMapper {
+public class SeriesMapper {
 
-    /**
-     * Private constructor to prevent instantiation.
-     * This class contains only static utility methods.
-     */
-    private SeriesMapper() {
-    }
+    public static SeriesResponse toResponse(Series series) {
 
-    /**
-     * Converts a single Series domain object
-     * into SeriesResponse DTO.
-     *
-     * @param s domain model object
-     * @return mapped DTO object
-     */
-    public static SeriesResponse toResponse(Series s) {
-        if (s == null) {
-            return null;
-        }
+        Studio studio = series.getStudio();
+
+        StudioResponse studioDto = new StudioResponse(
+                studio.getId(),
+                studio.getName(),
+                studio.getCountry()
+        );
 
         return new SeriesResponse(
-                s.getTitle(),
-                s.getGenre(),
-                s.getSeasons(),
-                s.getRating(),
-                s.getYear(),
-                s.isFinished()
+                series.getId(),
+                series.getTitle(),
+                series.getGenre(),
+                series.getSeasons(),
+                series.getRating(),
+                series.getYear(),
+                series.isFinished(),
+                studioDto
         );
     }
 
-    /**
-     * Converts a list of Series domain objects
-     * into a list of SeriesResponse DTO objects.
-     *
-     * @param list list of domain objects
-     * @return list of DTO objects
-     */
-    public static List<SeriesResponse> toResponseList(List<Series> list) {
-        if (list == null) {
-            return List.of();
-        }
+    public static Series toEntity(SeriesRequest request) {
+        // finished у DTO Boolean -> entity boolean
+        boolean finished = Boolean.TRUE.equals(request.getFinished());
 
-        return list.stream()
-                .map(SeriesMapper::toResponse)
-                .toList();
+        // studio тут null, бо ми проставляємо студію в SeriesService по studioId
+        return new Series(
+                request.getTitle(),
+                request.getGenre(),
+                request.getSeasons(),
+                request.getRating(),
+                request.getYear(),
+                finished,
+                null
+        );
     }
 }

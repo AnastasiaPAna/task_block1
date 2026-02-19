@@ -15,6 +15,9 @@ import org.example.series.core.model.*;
  * This class contains only static methods and
  * acts as presentation helper for console mode.
  */
+/**
+ * Helper for printing series to the console.
+ */
 public class SeriesPrinter {
 
     /**
@@ -83,7 +86,7 @@ public class SeriesPrinter {
         }
 
         System.out.println("Title    : " + s.getTitle());
-        System.out.println("Genre    : " + s.getGenre());
+        System.out.println("Genre    : " + s.getStudio().getName());
         System.out.println("Seasons  : " + s.getSeasons());
         System.out.println("Rating   : " + s.getRating());
         System.out.println("Year     : " + s.getYear());

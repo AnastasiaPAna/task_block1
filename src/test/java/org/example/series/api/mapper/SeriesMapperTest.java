@@ -2,6 +2,8 @@ package org.example.series.api.mapper;
 
 import org.example.series.api.dto.SeriesResponse;
 import org.example.series.core.model.Series;
+import org.example.series.core.model.Studio;
+import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -11,33 +13,47 @@ import static org.junit.jupiter.api.Assertions.*;
 class SeriesMapperTest {
 
     @Test
-    void toResponse_shouldMapAllFieldsCorrectly() {
+    void shouldMapEntityToResponse() {
 
-        Series s = new Series("Test", "Drama", 2, 8.5, 2020, true);
+        Studio studio = new Studio();
+        studio.setName("Netflix");
 
-        SeriesResponse dto = SeriesMapper.toResponse(s);
+        Series series = new Series(
+                "Stranger Things",
+                "Drama",
+                4,
+                8.7,
+                2016,
+                false,
+                studio
+        );
 
-        assertNotNull(dto);
-        assertEquals("Test", dto.getTitle());
-        assertEquals("Drama", dto.getGenre());
-        assertEquals(2, dto.getSeasons());
-        assertEquals(8.5, dto.getRating());
-        assertEquals(2020, dto.getYear());
-        assertTrue(dto.isFinished());
+        SeriesResponse dto = SeriesMapper.toResponse(series);
+
+        assertEquals("Stranger Things", dto.getTitle());
+        assertEquals("Netflix", dto.getStudio().name());
+        assertEquals(4, dto.getSeasons());
+        assertEquals(8.7, dto.getRating());
+        assertEquals(2016, dto.getYear());
+        assertFalse(dto.isFinished());
     }
 
     @Test
-    void toResponseList_shouldMapListCorrectly() {
+    void shouldMapList() {
+
+        Studio studio = new Studio();
+        studio.setName("Netflix");
 
         List<Series> list = List.of(
-                new Series("A", "Drama", 1, 7.0, 2019, false),
-                new Series("B", "Horror", 2, 8.0, 2020, true)
+                new Series("A","Drama", 1, 7.0, 2020, false, studio),
+                new Series("B", "Drama",2, 8.0, 2021, true, studio)
         );
 
-        var result = SeriesMapper.toResponseList(list);
+        List<SeriesResponse> responses =
+                list.stream()
+                        .map(SeriesMapper::toResponse)
+                        .toList();
 
-        assertEquals(2, result.size());
-        assertEquals("A", result.get(0).getTitle());
-        assertEquals("B", result.get(1).getTitle());
+        assertEquals(2, responses.size());
     }
 }

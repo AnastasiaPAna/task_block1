@@ -30,6 +30,9 @@ import java.util.Map;
  * This class contains only static methods and is not intended
  * to be instantiated.
  */
+/**
+ * Writes statistics to XML file.
+ */
 public class XmlStatisticsWriter {
 
     /**
@@ -39,44 +42,35 @@ public class XmlStatisticsWriter {
      * @param attribute  attribute name used for grouping (e.g. genre, year)
      * @param outputFile path to the output XML file
      */
-    public static void write(Map<String, Integer> stats,
+    public static void write(Map<String, Long> stats,
                              String attribute,
                              Path outputFile) {
 
         try {
-            // Create new XML document
             Document doc = DocumentBuilderFactory.newInstance()
                     .newDocumentBuilder()
                     .newDocument();
 
-            // Create root element <statistics by="attribute">
             Element root = doc.createElement("statistics");
             root.setAttribute("by", attribute);
             doc.appendChild(root);
 
-            // Iterate over statistics entries and build XML structure
-            for (Map.Entry<String, Integer> entry : stats.entrySet()) {
+            for (Map.Entry<String, Long> entry : stats.entrySet()) {
 
-                // <item>
                 Element item = doc.createElement("item");
 
-                // <value>...</value>
                 Element value = doc.createElement("value");
                 value.setTextContent(entry.getKey());
 
-                // <count>...</count>
                 Element count = doc.createElement("count");
                 count.setTextContent(String.valueOf(entry.getValue()));
 
-                // Attach value and count to item
                 item.appendChild(value);
                 item.appendChild(count);
 
-                // Attach item to root
                 root.appendChild(item);
             }
 
-            // Configure XML transformer for pretty formatting
             Transformer transformer =
                     TransformerFactory.newInstance().newTransformer();
 
@@ -86,14 +80,12 @@ public class XmlStatisticsWriter {
                     "2"
             );
 
-            // Write XML document to file
             transformer.transform(
                     new DOMSource(doc),
                     new StreamResult(outputFile.toFile())
             );
 
         } catch (Exception ex) {
-            // Wrap checked exceptions into runtime exception
             throw new RuntimeException(
                     "Failed to write XML: " + outputFile,
                     ex

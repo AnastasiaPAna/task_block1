@@ -1,47 +1,35 @@
 package org.example.series.api.controller;
 
-import org.example.series.api.service.SeriesApiService;
+import org.example.series.core.service.SeriesService;
+import org.example.series.core.service.StatisticsService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
 /**
- * REST controller responsible for statistics-related endpoints.
- *
- * Base URL: /api/v1/statistics
- *
- * Provides aggregated statistical data calculated from
- * the loaded series dataset.
+ * REST controller exposing statistics endpoints.
  */
 @RestController
 @RequestMapping("/api/v1/statistics")
 public class StatisticsController {
 
-    // Service layer dependency injected by Spring
-    private final SeriesApiService service;
+    private final SeriesService seriesService;
 
-    /**
-     * Constructor-based dependency injection.
-     */
-    public StatisticsController(SeriesApiService service) {
-        this.service = service;
+    public StatisticsController(SeriesService seriesService) {
+        this.seriesService = seriesService;
     }
 
     /**
-     * Returns aggregated statistics grouped by selected attribute.
+     * Returns statistics grouped by the given attribute.
      *
-     * Example:
-     * GET /api/v1/statistics/genre
-     * GET /api/v1/statistics/year
-     *
-     * Supported attributes:
-     * title, genre, seasons, rating, year, finished
-     *
-     * @param attribute grouping attribute
-     * @return map where key = attribute value, value = count
+     * @param attribute attribute name supported by the service (e.g., genre, studio)
+     * @return map: group key -> count
      */
     @GetMapping("/{attribute}")
-    public Map<String, Integer> statistics(@PathVariable String attribute) {
-        return service.statistics(attribute);
+    public Map<String, Long> statistics(@PathVariable String attribute) {
+        return StatisticsService.countByAttribute(
+                seriesService.findAll(),
+                attribute
+        );
     }
 }

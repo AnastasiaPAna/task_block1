@@ -1,101 +1,88 @@
 package org.example.series.core.loader;
 
 import com.google.gson.Gson;
-
-import java.io.Reader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.reflect.TypeToken;
 import org.example.series.core.model.Series;
 
+import java.io.Reader;
+import java.lang.reflect.Type;
+import java.nio.file.*;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.*;
+
 /**
- * Utility class responsible for loading {@link Series} objects
- * from JSON files.
- *
- * Supports:
- * - loading a single file
- * - loading multiple files
- * - loading all JSON files from a folder (optionally in parallel)
- *
- * This class is stateless and thread-safe.
- * All methods are static and intended for utility-style usage.
+ * Utility for streaming/efficient loading of series from JSON files.
  */
 public class SeriesLoader {
 
-    /** Gson instance used for JSON deserialization */
-    private static final Gson GSON = new Gson();
+    private static final Gson GSON = new GsonBuilder()
+            .registerTypeAdapter(LocalDateTime.class,
+                    (JsonDeserializer<LocalDateTime>) (json, type, context) ->
+                            LocalDateTime.parse(json.getAsString()))
+            .create();
 
-    /**
-     * Loads a single JSON file and converts it into a {@link Series} object.
-     *
-     * @param path path to JSON file
-     * @return parsed Series instance
-     */
-    public static Series load(String path) {
-        try (Reader reader = Files.newBufferedReader(Path.of(path))) {
-            return GSON.fromJson(reader, Series.class);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to load series from file: " + path, e);
-        }
+    private static final Type LIST_TYPE = new TypeToken<List<Series>>() {}.getType();
+
+    /** Read file that can be either: { ... } OR [ { ... }, { ... } ] */
+    public static List<Series> loadList(String path) {
+        return loadList(Path.of(path));
     }
 
     /**
-     * Loads multiple JSON files sequentially.
-     *
-     * @param paths list of file paths
-     * @return list of parsed Series objects
+     * Backward-compatible helper for the legacy console runner.
+     * Loads each file from the given list and concatenates the results.
      */
     public static List<Series> loadAll(List<String> paths) {
-        List<Series> list = new ArrayList<>();
+        if (paths == null || paths.isEmpty()) return List.of();
+        List<Series> result = new ArrayList<>();
         for (String p : paths) {
-            list.add(load(p));
+            if (p == null || p.isBlank()) continue;
+            result.addAll(loadList(p));
         }
-        return list;
+        return result;
     }
 
-    /**
-     * Loads all JSON files from a folder using default thread count (4).
-     *
-     * @param folderPath path to directory
-     * @return list of parsed Series objects
-     */
+    public static List<Series> loadList(Path file) {
+        try (Reader r = Files.newBufferedReader(file)) {
+            // detect first non-space char
+            String first = firstNonWhitespaceChar(file);
+            if ("[".equals(first)) {
+                List<Series> list = GSON.fromJson(r, LIST_TYPE);
+                return list == null ? List.of() : list;
+            } else {
+                Series one = GSON.fromJson(r, Series.class);
+                return one == null ? List.of() : List.of(one);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse file: " + file, e);
+        }
+    }
+
+    /** Loads all .json from folder; each file may contain object or array */
     public static List<Series> loadFromFolder(String folderPath) {
-        return loadFromFolder(Path.of(folderPath), 4); // 4 потоки за замовчуванням
+        return loadFromFolder(Path.of(folderPath), 4);
     }
 
-    /**
-     * Loads all JSON files from a folder in parallel.
-     *
-     * @param folder  directory containing JSON files
-     * @param threads number of threads to use
-     * @return list of parsed Series objects
-     */
     public static List<Series> loadFromFolder(Path folder, int threads) {
-
-        // Create thread pool for parallel file processing
         ExecutorService pool = Executors.newFixedThreadPool(threads);
 
         try (var paths = Files.list(folder)) {
 
-            // Filter only JSON files
             List<Path> files = paths
                     .filter(p -> p.toString().endsWith(".json"))
                     .toList();
 
-            // Submit parsing tasks to thread pool
-            List<Future<Series>> futures = new ArrayList<>();
+            List<Future<List<Series>>> futures = new ArrayList<>();
             for (Path f : files) {
-                futures.add(pool.submit(() -> parseOneFile(f)));
+                futures.add(pool.submit(() -> loadList(f)));
             }
 
-            // Collect results
             List<Series> result = new ArrayList<>();
-            for (Future<Series> fut : futures) {
-                result.add(fut.get());
+            for (Future<List<Series>> fut : futures) {
+                result.addAll(fut.get());
             }
 
             return result;
@@ -103,22 +90,17 @@ public class SeriesLoader {
         } catch (Exception e) {
             throw new RuntimeException("Failed to load from folder: " + folder, e);
         } finally {
-            // Always shutdown thread pool
             pool.shutdown();
         }
     }
 
-    /**
-     * Parses a single JSON file into a Series object.
-     *
-     * @param file path to JSON file
-     * @return parsed Series instance
-     */
-    private static Series parseOneFile(Path file) {
-        try (Reader r = Files.newBufferedReader(file)) {
-            return GSON.fromJson(r, Series.class);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse file: " + file, e);
+    private static String firstNonWhitespaceChar(Path file) throws Exception {
+        // read small prefix
+        String content = Files.readString(file);
+        for (int i = 0; i < content.length(); i++) {
+            char c = content.charAt(i);
+            if (!Character.isWhitespace(c)) return String.valueOf(c);
         }
+        return "";
     }
 }

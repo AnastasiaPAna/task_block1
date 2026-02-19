@@ -1,8 +1,11 @@
 {
   "title": "Дуже дивні дива",
-  "genre": "Sci-Fi, Horror, Drama",
   "seasons": 5,
   "rating": 8.7,
   "year": 2016,
-  "finished": true
+  "finished": true,
+  "studio": {
+    "name": "Netflix",
+    "country": "USA"
+  }
 }

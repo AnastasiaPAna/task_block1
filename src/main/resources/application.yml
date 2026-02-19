@@ -1,6 +1,4 @@
 spring:
-  application:
-    name: series-analyzer
-
-app:
-  data-path: ./data/series.json
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    contexts: ${DB_SEED:false}

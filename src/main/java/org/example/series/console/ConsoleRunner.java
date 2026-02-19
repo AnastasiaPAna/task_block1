@@ -3,7 +3,6 @@ package org.example.series.console;
 import org.example.series.core.export.XmlStatisticsWriter;
 import org.example.series.core.loader.SeriesLoader;
 import org.example.series.core.model.Series;
-import org.example.series.core.service.SeriesService;
 import org.example.series.core.service.StatisticsService;
 
 import java.nio.file.Path;
@@ -11,46 +10,23 @@ import java.util.List;
 import java.util.Scanner;
 
 /**
- * Console entry point for interactive and parameter-based execution.
- *
- * Supports two modes:
- *
- * 1) Argument mode:
- *    args[0] = folder path
- *    args[1] = attribute for statistics
- *    args[2] = output mode (optional): pretty/simple
- *
- * 2) Interactive mode:
- *    Loads predefined data and provides CLI menu.
- *
- * This class acts as presentation layer for console usage.
+ * Console entry-point for CLI/interative mode (used in local runs).
  */
 public class ConsoleRunner {
 
-    /** Controls output formatting mode */
     private static boolean prettyMode = true;
 
-    /**
-     * Entry method for console execution.
-     *
-     * @param args command-line arguments
-     */
     public static void run(String[] args) {
 
-        // =========================
-        // MODE 1: Parameter-based execution
-        // =========================
         if (args.length >= 2) {
 
             String folderPath = args[0];
             String attribute = args[1];
 
-            // Optional formatting argument
             if (args.length >= 3) {
                 applyModeArg(args[2]);
             }
 
-            // Load all series from provided folder
             List<Series> seriesList = SeriesLoader.loadFromFolder(folderPath);
 
             System.out.println("=== Loaded series (" + seriesList.size()
@@ -60,10 +36,8 @@ public class ConsoleRunner {
             printList(seriesList);
 
             try {
-                // Generate statistics
                 var stats = StatisticsService.countByAttribute(seriesList, attribute);
 
-                // Export statistics to XML
                 Path out = Path.of("statistics_by_" + attribute.toLowerCase() + ".xml");
                 XmlStatisticsWriter.write(stats, attribute.toLowerCase(), out);
 
@@ -76,11 +50,6 @@ public class ConsoleRunner {
             return;
         }
 
-        // =========================
-        // MODE 2: Interactive menu
-        // =========================
-
-        // Predefined dataset
         List<String> files = List.of(
                 "data/01_stranger_things.json",
                 "data/02_wednesday.json",
@@ -111,76 +80,83 @@ public class ConsoleRunner {
                 switch (input) {
 
                     case "1" -> {
-                        // Show all series
                         System.out.println("\n=== All series | mode: "
                                 + (prettyMode ? "PRETTY" : "SIMPLE") + " ===");
                         printList(seriesList);
                     }
 
                     case "2" -> {
-                        // Filter by minimum rating
-                        System.out.print("Enter min rating (example 8.5): ");
+                        System.out.print("Enter min rating: ");
                         double minRating = readDouble(sc);
 
-                        var filtered = SeriesService.filterByRating(seriesList, minRating);
+                        var filtered =
+                                StatisticsService.filterByRating(seriesList, minRating);
                         printList(filtered);
                     }
 
                     case "3" -> {
-                        // Filter by finished status
                         System.out.print("Finished only? (true/false): ");
                         boolean finished = readBoolean(sc);
 
-                        var filtered = SeriesService.filterByFinished(seriesList, finished);
+                        var filtered =
+                                StatisticsService.filterByFinished(seriesList, finished);
                         printList(filtered);
                     }
 
                     case "4" -> {
-                        // Top N by rating
                         System.out.print("Enter N for TOP by rating: ");
                         int n = readInt(sc);
 
-                        var top = SeriesService.topNByRating(seriesList, n);
+                        var top =
+                                StatisticsService.topNByRating(seriesList, n);
                         printList(top);
                     }
 
                     case "5" -> {
-                        // Search by partial title
-                        System.out.print("Search by title (part of name): ");
-                        String q = sc.nextLine().trim();
+                        System.out.print("Enter keyword: ");
+                        String keyword = sc.nextLine();
 
-                        SeriesService.findByTitleContains(seriesList, q)
-                                .ifPresentOrElse(
-                                        SeriesPrinter::printOne,
-                                        () -> System.out.println("Not found")
-                                );
+                        List<Series> found =
+                                StatisticsService.findByTitleContains(seriesList, keyword);
+
+                        if (found.isEmpty()) {
+                            System.out.println("Not found");
+                        } else {
+                            SeriesPrinter.printOne(found.get(0));
+                        }
                     }
 
                     case "6" -> {
-                        // Sort by rating descending
-                        var sorted = SeriesService.sortByRatingDesc(seriesList);
+                        var sorted =
+                                StatisticsService.sortByRatingDesc(seriesList);
                         printList(sorted);
                     }
 
                     case "7" -> {
-                        // Display statistics summary
-                        double avg = SeriesService.averageRating(seriesList);
+                        double avg =
+                                StatisticsService.averageRating(seriesList);
                         System.out.printf("Average rating = %.2f%n", avg);
 
-                        SeriesService.maxSeasons(seriesList)
+                        int max =
+                                StatisticsService.maxSeasons(seriesList);
+
+                        StatisticsService.sortByRatingDesc(seriesList).stream()
+                                .filter(s -> s.getSeasons() == max)
+                                .findFirst()
                                 .ifPresent(s ->
                                         System.out.println("Most seasons: "
                                                 + s.getTitle()
-                                                + " (" + s.getSeasons() + ")"));
+                                                + " (" + s.getSeasons() + ")")
+                                );
                     }
 
                     case "8" -> {
-                        // Export statistics to XML
-                        System.out.print("Enter attribute (title/genre/seasons/rating/year/finished): ");
+                        System.out.print("Enter attribute: ");
                         String attr = sc.nextLine().trim();
 
                         try {
-                            var stats = StatisticsService.countByAttribute(seriesList, attr);
+                            var stats =
+                                    StatisticsService.countByAttribute(seriesList, attr);
 
                             stats.forEach((k, v) ->
                                     System.out.println(k + " = " + v));
@@ -196,7 +172,6 @@ public class ConsoleRunner {
                     }
 
                     case "9" -> {
-                        // Change output formatting mode
                         System.out.println("1 - SIMPLE");
                         System.out.println("2 - PRETTY");
                         System.out.print("Enter 1 or 2: ");
@@ -215,7 +190,6 @@ public class ConsoleRunner {
                     }
 
                     case "0" -> {
-                        // Exit application
                         System.out.println("Bye!");
                         running = false;
                     }
@@ -228,7 +202,6 @@ public class ConsoleRunner {
         }
     }
 
-    /** Prints list using current display mode */
     private static void printList(List<Series> list) {
         if (prettyMode) {
             SeriesPrinter.printShortList(list);
@@ -237,14 +210,12 @@ public class ConsoleRunner {
         }
     }
 
-    /** Applies formatting mode from CLI argument */
     private static void applyModeArg(String modeArg) {
         if (modeArg == null) return;
         if (modeArg.equalsIgnoreCase("simple")) prettyMode = false;
         if (modeArg.equalsIgnoreCase("pretty")) prettyMode = true;
     }
 
-    /** Prints console menu */
     private static void printMenu() {
         System.out.println("""
                 -------------------------
@@ -262,7 +233,6 @@ public class ConsoleRunner {
                 """);
     }
 
-    /** Reads integer input with validation */
     private static int readInt(Scanner sc) {
         while (true) {
             try {
@@ -273,18 +243,17 @@ public class ConsoleRunner {
         }
     }
 
-    /** Reads double input with validation */
     private static double readDouble(Scanner sc) {
         while (true) {
             try {
-                return Double.parseDouble(sc.nextLine().trim().replace(",", "."));
+                return Double.parseDouble(
+                        sc.nextLine().trim().replace(",", "."));
             } catch (Exception e) {
                 System.out.print("Please enter a number: ");
             }
         }
     }
 
-    /** Reads boolean input with validation */
     private static boolean readBoolean(Scanner sc) {
         while (true) {
             String s = sc.nextLine().trim().toLowerCase();

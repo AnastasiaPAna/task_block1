@@ -1,108 +1,124 @@
 package org.example.series.core.service;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
-
+import org.example.series.api.exception.NotFoundException;
 import org.example.series.core.model.Series;
+import org.example.series.core.model.Studio;
+import org.example.series.core.repository.SeriesRepository;
+import org.example.series.core.repository.StudioRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+
 
 /**
- * Service layer containing business logic operations
- * for {@link Series} collections.
- *
- * Provides filtering, sorting, searching and
- * statistical calculations.
- *
- * This class is stateless and all methods are static.
+ * Core service containing business logic for series management (CRUD, filtering, top/search).
  */
+@Service
+
 public class SeriesService {
 
-    /**
-     * Filters series by minimum rating.
-     *
-     * @param list       list of series
-     * @param minRating  minimum rating threshold
-     * @return list of series with rating >= minRating
-     */
-    public static List<Series> filterByRating(List<Series> list, double minRating) {
-        return list.stream()
-                .filter(s -> s.getRating() >= minRating)
-                .toList();
+    private final SeriesRepository repository;
+    private final StudioRepository studioRepository;
+
+    public SeriesService(SeriesRepository repository,
+                         StudioRepository studioRepository) {
+        this.repository = repository;
+        this.studioRepository = studioRepository;
     }
 
-    /**
-     * Filters series by finished status.
-     *
-     * @param list      list of series
-     * @param finished  true to get finished series, false otherwise
-     * @return filtered list
-     */
-    public static List<Series> filterByFinished(List<Series> list, boolean finished) {
-        return list.stream()
-                .filter(s -> s.isFinished() == finished)
-                .toList();
+    @Transactional
+    public Series create(Series series, Long studioId) {
+        Studio studio = studioRepository.findById(studioId)
+                .orElseThrow(() -> new NotFoundException("Studio not found"));
+
+        series.setStudio(studio);
+        return repository.save(series);
     }
 
-    /**
-     * Sorts series by rating in descending order.
-     *
-     * @param list list of series
-     * @return sorted list (highest rating first)
-     */
-    public static List<Series> sortByRatingDesc(List<Series> list) {
-        return list.stream()
-                .sorted(Comparator.comparingDouble(Series::getRating).reversed())
-                .toList();
+    public List<Series> findAll() {
+        return repository.findAll();
     }
 
-    /**
-     * Returns top N series by rating.
-     *
-     * @param list list of series
-     * @param n    number of top items to return
-     * @return list containing top N series
-     */
-    public static List<Series> topNByRating(List<Series> list, int n) {
-        return sortByRatingDesc(list).stream()
-                .limit(n)
-                .toList();
+    public Series findById(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Series not found"));
     }
 
-    /**
-     * Finds first series whose title contains given query (case-insensitive).
-     *
-     * @param list  list of series
-     * @param query search substring
-     * @return Optional containing matching series if found
-     */
-    public static Optional<Series> findByTitleContains(List<Series> list, String query) {
-        String q = query.toLowerCase();
-        return list.stream()
-                .filter(s -> s.getTitle().toLowerCase().contains(q))
-                .findFirst();
+    public Series findByTitle(String title) {
+        return repository.findFirstByTitleContainingIgnoreCaseOrderByIdAsc(title)
+                .orElseThrow(() -> new NotFoundException("Series not found"));
     }
 
-    /**
-     * Calculates average rating across all series.
-     *
-     * @param list list of series
-     * @return average rating or 0.0 if list is empty
-     */
-    public static double averageRating(List<Series> list) {
-        return list.stream()
-                .mapToDouble(Series::getRating)
-                .average()
-                .orElse(0.0);
+    @Transactional
+    public Series update(Long id, Series updated, Long studioId) {
+
+        Series existing = findById(id);
+
+        existing.setTitle(updated.getTitle());
+        existing.setGenre(updated.getGenre());
+        existing.setRating(updated.getRating());
+        existing.setSeasons(updated.getSeasons());
+        existing.setYear(updated.getYear());
+        existing.setFinished(updated.isFinished());
+
+        if (studioId != null) {
+            Studio studio = studioRepository.findById(studioId)
+                    .orElseThrow(() -> new NotFoundException("Studio not found"));
+            existing.setStudio(studio);
+        }
+
+        return repository.save(existing);
     }
 
-    /**
-     * Finds series with the maximum number of seasons.
-     *
-     * @param list list of series
-     * @return Optional containing series with most seasons
-     */
-    public static Optional<Series> maxSeasons(List<Series> list) {
-        return list.stream()
-                .max(Comparator.comparingInt(Series::getSeasons));
+    @Transactional
+    public void delete(Long id) {
+        if (!repository.existsById(id)) {
+            throw new NotFoundException("Series not found");
+        }
+        repository.deleteById(id);
+    }
+
+    public List<Series> topNByRating(int n) {
+        // Efficient DB-level sorting + limiting
+        return repository.findAllByOrderByRatingDesc(PageRequest.of(0, n));
+    }
+
+    public Page<Series> search(
+            Long studioId,
+            Double minRating,
+            Integer year,
+            String genre,
+            Pageable pageable) {
+
+        Specification<Series> spec = Specification.where(null);
+
+        if (studioId != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("studio").get("id"), studioId));
+        }
+
+        if (minRating != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.greaterThanOrEqualTo(root.get("rating"), minRating));
+        }
+
+        if (year != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("year"), year));
+        }
+
+        if (genre != null && !genre.isBlank()) {
+            String like = "%" + genre.trim().toLowerCase() + "%";
+            spec = spec.and((root, query, cb) ->
+                    cb.like(cb.lower(root.get("genre")), like));
+        }
+
+        return repository.findAll(spec, pageable);
     }
 }

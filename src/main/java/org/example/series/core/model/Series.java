@@ -1,100 +1,81 @@
 package org.example.series.core.model;
 
+import jakarta.persistence.*;
+
+
+
 /**
- * Domain model representing a TV series.
- *
- * This class is used as a data holder for:
- * - JSON deserialization (via Gson)
- * - business logic operations
- * - statistics calculations
- *
- * Instances of this class are immutable from outside
- * (no setters provided).
+ * JPA entity representing a TV series.
  */
+@Entity
+@Table(name = "series")
+
 public class Series {
 
-    /** Title of the series */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "studio_id", nullable = false)
+    private Studio studio;
+
+    @Column(nullable = false, length = 255)
     private String title;
 
-    /** Genre(s) of the series (comma-separated) */
+    @Column(nullable = false, length = 255)
     private String genre;
 
-    /** Number of seasons */
+    @Column(nullable = false)
     private int seasons;
 
-    /** Average rating (e.g. IMDb rating) */
+    @Column(nullable = false)
     private double rating;
 
-    /** Release year */
+    @Column(nullable = false)
     private int year;
 
-    /** Indicates whether the series is finished */
+    @Column(nullable = false)
     private boolean finished;
 
-    /**
-     * Default constructor required for Gson deserialization.
-     */
-    public Series() {
-    }
+    public Series() {}
 
-    /**
-     * Full constructor.
-     *
-     * @param title    series title
-     * @param genre    genre or multiple genres
-     * @param seasons  number of seasons
-     * @param rating   average rating
-     * @param year     release year
-     * @param finished whether the series is finished
-     */
-    public Series(String title, String genre, int seasons, double rating, int year, boolean finished) {
+    public Series(String title,
+                  String genre,
+                  int seasons,
+                  double rating,
+                  int year,
+                  boolean finished,
+                  Studio studio) {
         this.title = title;
         this.genre = genre;
         this.seasons = seasons;
         this.rating = rating;
         this.year = year;
         this.finished = finished;
+        this.studio = studio;
     }
 
-    /** @return series title */
-    public String getTitle() {
-        return title;
-    }
+    public Long getId() { return id; }
 
-    /** @return genre(s) */
-    public String getGenre() {
-        return genre;
-    }
+    public Studio getStudio() { return studio; }
+    public void setStudio(Studio studio) { this.studio = studio; }
 
-    /** @return number of seasons */
-    public int getSeasons() {
-        return seasons;
-    }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
 
-    /** @return average rating */
-    public double getRating() {
-        return rating;
-    }
+    public String getGenre() { return genre; }
+    public void setGenre(String genre) { this.genre = genre; }
 
-    /** @return release year */
-    public int getYear() {
-        return year;
-    }
+    public int getSeasons() { return seasons; }
+    public void setSeasons(int seasons) { this.seasons = seasons; }
 
-    /** @return true if series is finished */
-    public boolean isFinished() {
-        return finished;
-    }
+    public double getRating() { return rating; }
+    public void setRating(double rating) { this.rating = rating; }
 
-    @Override
-    public String toString() {
-        return "Series{" +
-                "title='" + title + '\'' +
-                ", genre='" + genre + '\'' +
-                ", seasons=" + seasons +
-                ", rating=" + rating +
-                ", year=" + year +
-                ", finished=" + finished +
-                '}';
-    }
+    public int getYear() { return year; }
+    public void setYear(int year) { this.year = year; }
+
+    public boolean isFinished() { return finished; }
+    public void setFinished(boolean finished) { this.finished = finished; }
 }

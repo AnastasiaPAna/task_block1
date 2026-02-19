@@ -18,6 +18,9 @@ import java.util.Map;
  *
  * Default mode = web
  */
+/**
+ * Main Spring Boot application entry point.
+ */
 @SpringBootApplication
 public class SeriesAnalyzerApplication {
 

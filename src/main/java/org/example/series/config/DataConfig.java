@@ -17,6 +17,9 @@ import java.util.List;
  * The dataset is loaded once during application bootstrap
  * and shared across the entire application.
  */
+/**
+ * Spring configuration for seed data/loading config.
+ */
 @Configuration
 public class DataConfig {
 
