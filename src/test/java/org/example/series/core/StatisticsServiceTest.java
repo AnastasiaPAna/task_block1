@@ -33,4 +33,18 @@ class StatisticsServiceTest {
         assertEquals(2L, result.get("Netflix"));
         assertEquals(1L, result.get("HBO"));
     }
+
+    @Test
+    void shouldReturnEmptyMapForEmptyList() {
+        Map<String, Long> result = StatisticsService.countByAttribute(List.of(), "studio");
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void shouldThrowForUnsupportedAttribute() {
+        assertThrows(IllegalArgumentException.class,
+                () -> StatisticsService.countByAttribute(List.of(), "abc"));
+    }
 }
