@@ -1,167 +1,265 @@
-# 🎬 Series Analyzer
+# Series Analyzer (Spring Boot + REST API)
 
-Spring Boot REST API для керування серіалами (Entity1) та студіями
-(Entity2).\
+Проєкт для керування базою серіалів та студій з REST API, веб-сторінками (Thymeleaf) і можливістю імпорту даних з JSON.
 
-# 🏗 Архітектура
+## Технології
+- Java 21
+- Spring Boot 3.2.5 (Web, Validation, Data JPA)
+- PostgreSQL
+- Liquibase (міграції та сидинг)
+- Thymeleaf (простий веб-інтерфейс)
+- JUnit 5 + Spring Boot Test (та інтеграційні тести)
 
-Проєкт реалізований за шаровою архітектурою:
+---
 
--   Controller (REST API)
--   Service (бізнес‑логіка)
--   Repository (Spring Data JPA)
--   DTO (розділення request/response моделей)
--   Liquibase (міграції бази даних)
--   Інтеграційні тести (JUnit 5)
+## 1) Старт проєкту
 
+### Передумови
+- Встановлена Java 21
+- Запущений PostgreSQL (наприклад, через OpenServer / локально)
+- Створена БД `series_db` (або інша — див. `.env`)
 
-# 🛠 Технології
+### Конфігурація через `.env`
+У корені проєкту є `.env` (підтягується автоматично з `spring.config.import=optional:file:.env`).
 
--   Java 21
--   Spring Boot 3
--   PostgreSQL
--   Liquibase
--   Maven
--   JUnit 5
--   Swagger (OpenAPI)
+Приклад ключових змінних (див. `.env`):
+```env
+APP_MODE=web
+APP_PORT=9090
+APP_DEBUG=true
 
+DB_HOST=localhost
+DB_PORT=5433
+DB_NAME=series_db
+DB_USER=postgres
+DB_PASSWORD=
 
-# 🚀 Запуск проєкту
-
-## 1️⃣ Запустити PostgreSQL (OpenServer)
-
-Налаштування за замовчуванням:
-
--   Host: localhost
--   Port: 5433
--   Database: series_db
--   Username: postgres
--   Password: postgres
-
-## 2️⃣ Запустити застосунок
-
-В IntelliJ IDEA: - Відкрити `SeriesAnalyzerApplication` - Натиснути ▶
-Run
-
-Або через термінал:
-
-mvn spring-boot:run
-
-Застосунок стартує на:
-
-http://localhost:9090
-
-
-# 📌 API Endpoints
-
-## 🏢 Studios (Entity2)
-
--   POST /api/v1/studios
--   GET /api/v1/studios
--   PUT /api/v1/studios/{id}
--   DELETE /api/v1/studios/{id}
-
-## 🎬 Series (Entity1)
-
--   POST /api/v1/series
--   GET /api/v1/series/{id}
--   PUT /api/v1/series/{id}
--   DELETE /api/v1/series/{id}
-
-
-# 📄 Пагінація та фільтрація
-
-POST /api/v1/series/\_list
-
-Приклад запиту:
-
-{ "studioId": 1, "minRating": 8.0, "page": 1, "size": 20 }
-
-
-# 📊 Генерація звіту
-
-POST /api/v1/series/\_report
-
-Повертає CSV-файл зі статистикою.
-
-
-# 📥 Імпорт JSON
-
-POST /api/v1/series/upload
-
-Тип запиту: multipart/form-data\
-Key: file
-
-
-# 🧪 Інтеграційні тести
-
-Тести знаходяться у:
-
-src/test/java/
-
-Покрито:
-
-✔ CRUD операції\
-✔ Пагінація\
-✔ Імпорт файлу\
-✔ Обробка помилок
-
-Граничні випадки:
-
--   Порожній JSON файл
--   Некоректний JSON
--   Відсутній обов'язковий атрибут
--   Порожній список для статистики
-
-Запуск тестів:
-
-mvn test
-
-
-# ⚡ Порівняння продуктивності (багатопоточність)
-
-Експеримент з різною кількістю потоків:
-
-  Потоки   Час (мс)   Прискорення
-  -------- ---------- -------------
-  1        12450      1.00x
-  2        7120       1.74x
-  4        4180       2.97x
-  8        3890       3.20x
-
-
-
-# 📄 Приклад statistics_by_genre.xml
-
-```{=html}
-<?xml version="1.0" encoding="UTF-8"?>
+DB_SEED=seed
 ```
-`<statistics>`{=html} `<genre name="Drama">`{=html}
-`<count>`{=html}12`</count>`{=html}
-`<averageRating>`{=html}8.13`</averageRating>`{=html}
-`<minYear>`{=html}2006`</minYear>`{=html}
-`<maxYear>`{=html}2023`</maxYear>`{=html} `</genre>`{=html}
-`<genre name="Comedy">`{=html} `<count>`{=html}7`</count>`{=html}
-`<averageRating>`{=html}7.42`</averageRating>`{=html}
-`<minYear>`{=html}1998`</minYear>`{=html}
-`<maxYear>`{=html}2022`</maxYear>`{=html} `</genre>`{=html}
-`</statistics>`{=html}
 
+> **APP_PORT** встановлює порт для Spring Boot (через `server.port`).  
+> **DB_SEED** керує сидингом Liquibase (див. нижче).
 
-# 📁 Структура проєкту
+### Запуск (Web режим)
+- В IntelliJ IDEA: запусти клас `SeriesAnalyzerApplication`
+- Після старту відкрий:
+  - Веб: `http://localhost:9090/`
+  - Список серіалів: `http://localhost:9090/series`
+  - Статистика: `http://localhost:9090/statistics`
+---
 
-src ├── main │ ├── java │ └── resources └── test
+## 2) База даних та Liquibase
 
+### Міграції
+Liquibase використовує master-файл:
+`src/main/resources/db/changelog/db.changelog-master.yaml`
 
-# ✅ Реалізований функціонал
+Таблиці:
+- `studios`
+- `series` (FK на `studios`)
 
-✔ REST API\
-✔ Liquibase міграції\
-✔ Імпорт JSON\
-✔ Експорт CSV\
-✔ Пагінація та фільтрація\
-✔ Інтеграційні тести\
-✔ Багатопоточна обробка\
-✔ Формування XML статистики
+### Сидинг (початкові дані)
+Сидинг керується `DB_SEED`.
 
+У `.env`:
+```env
+DB_SEED=seed
+```
 
+У `application.yml`:
+```yaml
+spring:
+  liquibase:
+    contexts: ${DB_SEED:false}
+```
+
+Тобто: якщо `DB_SEED=seed`, то changeset-и з контекстом `seed` будуть застосовані.
+
+---
+
+## 3) REST API
+
+Base URL:
+- `http://localhost:9090`
+
+### 3.1 Studios
+
+#### Отримати всі студії
+`GET /api/v1/studios`
+
+#### Створити студію
+`POST /api/v1/studios`  
+Content-Type: `application/json`
+
+**Body:**
+```json
+{
+  "name": "HBO",
+  "country": "USA"
+}
+```
+
+#### Оновити студію
+`PUT /api/v1/studios/{id}`
+
+**Body:**
+```json
+{
+  "name": "Netflix",
+  "country": "USA"
+}
+```
+
+#### Видалити студію
+`DELETE /api/v1/studios/{id}`
+
+---
+
+### 3.2 Series
+
+#### Отримати всі серіали (пагінація/сортування)
+`GET /api/v1/series?page=0&size=10&sort=rating,desc`
+
+#### Отримати серіал по id
+`GET /api/v1/series/{id}`
+
+#### Топ серіалів
+`GET /api/v1/series/top?limit=5`
+
+#### Пошук
+`GET /api/v1/series/search?query=game`
+
+#### Створити серіал
+`POST /api/v1/series`  
+Content-Type: `application/json`
+
+**Body:**
+```json
+{
+  "title": "Wednesday",
+  "genre": "Mystery",
+  "seasons": 2,
+  "rating": 8.1,
+  "year": 2022,
+  "finished": false,
+  "studioId": 2
+}
+```
+
+#### Оновити серіал
+`PUT /api/v1/series/{id}`  
+Content-Type: `application/json`
+
+**Body:**
+```json
+{
+  "title": "Wednesday",
+  "genre": "Mystery",
+  "seasons": 2,
+  "rating": 8.2,
+  "year": 2022,
+  "finished": false,
+  "studioId": 2
+}
+```
+
+#### Видалити серіал
+`DELETE /api/v1/series/{id}`
+
+---
+
+### 3.3 Пакетні операції
+
+#### Список по фільтрах (POST _list)
+`POST /api/v1/series/_list`  
+Content-Type: `application/json`
+
+**Body (приклад):**
+```json
+{
+  "genres": ["Drama", "Mystery"],
+  "yearFrom": 2015,
+  "yearTo": 2024,
+  "minRating": 7.5,
+  "finished": false
+}
+```
+
+> Поля можуть бути опційними — вказуй тільки те, що потрібно фільтрувати.
+
+#### Генерація звіту (POST _report)
+`POST /api/v1/series/_report`  
+Content-Type: `application/json`
+
+**Body (приклад):**
+```json
+{
+  "format": "csv",
+  "genres": ["Drama"],
+  "minRating": 8.0
+}
+```
+
+Відповідь повертає `jobId`.  
+Потім можна забрати результат:
+
+`GET /api/v1/series/_report/{jobId}`
+
+---
+
+### 3.4 Імпорт з JSON файлу (multipart)
+
+`POST /api/v1/series/upload`  
+Content-Type: `multipart/form-data`
+
+**Form-data:**
+- key: `file`
+- type: File
+- value: `series.json`
+
+> В Postman **не виставляй вручну** `Content-Type: application/json` для multipart.  
+> Postman сам поставить `multipart/form-data; boundary=...`.
+
+У проєкті є приклад файлу для імпорту:
+- `src/test/resources/import-series.json`
+- або файли в папці `data/`
+
+---
+
+## 4) Postman
+
+Готова колекція:
+`postman/Series API.postman_collection.json`
+
+Імпортуй її в Postman та перевір ендпоїнти.
+
+---
+
+## 5) Тести
+
+Запуск тестів в IntelliJ:
+- вкладка **Maven** → **Lifecycle** → `test`
+
+Або, якщо Maven доступний у терміналі:
+```bash
+mvn clean test
+```
+
+Покриті граничні випадки:
+- порожній файл
+- некоректний JSON
+- відсутні обовʼязкові атрибути
+- порожній список для статистики
+- невідомий атрибут статистики
+
+---
+
+## 6) Структура проєкту (коротко)
+- `org.example.series.api` — REST API (controllers, dto, mapper, validation)
+- `org.example.series.core` — доменна логіка (model, loader, export, services)
+- `org.example.series.web` — веб-сторінки (Thymeleaf)
+- `src/main/resources/db` — Liquibase міграції
+- `src/main/resources/templates` — HTML шаблони
+- `src/main/resources/static` — CSS/JS
+
+---
